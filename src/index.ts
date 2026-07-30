@@ -32,26 +32,52 @@ const documents: DocumentEntry[] = [
 
 async function callGemini(prompt: string, opts: Record<string, any> = {}) {
   const apiKey = process.env.GEMINI_API_KEY;
-  const apiUrl = process.env.GEMINI_API_URL;
+  // Default to Gemini 1.5 Flash if GEMINI_API_URL isn't set
+  const apiUrl =
+    process.env.GEMINI_API_URL ||
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
   if (apiKey && apiUrl && typeof fetch !== 'undefined') {
     try {
-      const resp = await fetch(apiUrl, {
+      // Pass the API key in the URL search params, not the Authorization header
+      const resp = await fetch(`${apiUrl}?key=${apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({ prompt, ...opts }),
+        // Gemini REST API expects the body wrapped in 'contents'
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: prompt }],
+            },
+          ],
+          ...opts,
+        }),
       });
+
       const data = await resp.json();
-      return { model: 'gemini', prompt, response: data?.text ?? JSON.stringify(data) };
+      
+      // Extract generated text from the standard Gemini API response structure
+      const text =
+        data?.candidates?.[0]?.content?.parts?.[0]?.text ??
+        JSON.stringify(data);
+
+      return { model: 'gemini', prompt, response: text };
     } catch (err) {
-      return { model: 'gemini-error', prompt, response: `Gemini call failed: ${String(err)}` };
+      return {
+        model: 'gemini-error',
+        prompt,
+        response: `Gemini call failed: ${String(err)}`,
+      };
     }
   }
 
-  return { model: 'gemini-placeholder', prompt, response: `(Gemini placeholder) Response for prompt: ${prompt.slice(0, 200)}` };
+  return {
+    model: 'gemini-placeholder',
+    prompt,
+    response: `(Gemini placeholder) Response for prompt: ${prompt.slice(0, 200)}`,
+  };
 }
 
 app.get('/api/health', (_req: Request, res: Response) => {
@@ -108,7 +134,7 @@ app.post('/api/pdf/download-pdf', async (req: Request, res: Response) => {
     const { content = '', filename = 'legal_document.pdf' } = req.body || {};
     const chunks: Buffer[] = [];
     const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
-    doc.on('data', (c) => chunks.push(c));
+    doc.on('data', (c: Buffer) => chunks.push(c));
     doc.on('end', () => {
       const buf = Buffer.concat(chunks);
       res.setHeader('Content-Type', 'application/pdf');
