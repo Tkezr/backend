@@ -1,0 +1,1 @@
+export const contractPrompt = `You are a legal assistant. Analyze the following contract text and return a JSON object with at least the fields: summary, keyClauses (array), risks (array), recommendedNextSteps (array). If you cannot parse, return a summary field with raw text.`;
