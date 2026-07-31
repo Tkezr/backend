@@ -36,7 +36,7 @@ async function callGemini(prompt: string, opts: Record<string, any> = {}) {
   // Default to Gemini 1.5 Flash if GEMINI_API_URL isn't set
   const apiUrl =
     process.env.GEMINI_API_URL ||
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
   if (apiKey && apiUrl && typeof fetch !== 'undefined') {
     try {
@@ -168,19 +168,19 @@ app.post('/pdf/download-pdf', async (req: Request, res: Response) => {
 app.post('/ai/drafts/generate', async (req: Request, res: Response) => {
   const { prompt } = req.body || {};
   const ai = await callGemini(`Generate draft: ${prompt || ''}`);
-  res.json({ draft: `Draft generated for Joe:\n\n${ai.response}` });
+  res.json({ draft: ai.response });
 });
 
 app.post('/ai/draft/enhance', async (req: Request, res: Response) => {
   const { draft } = req.body || {};
   const ai = await callGemini(`Enhance draft: ${draft || ''}`);
-  res.json({ enhanced: `${ai.response}\n(Enhanced for Joe)` });
+  res.json({ enhanced: ai.response });
 });
 
 app.post('/ai/draft/clause', async (req: Request, res: Response) => {
   const { context } = req.body || {};
   const ai = await callGemini(`Create clause: ${context || ''}`);
-  res.json({ clause: `${ai.response}\n-- Clause by Joe` });
+  res.json({ clause: ai.response });
 });
 
 app.post('/ai/contracts/analyze', upload.single('file'), async (req: Request, res: Response) => {
@@ -234,7 +234,7 @@ app.post('/ai/research/bare-act', async (req: Request, res: Response) => {
 app.post('/ai/research/citation', async (req: Request, res: Response) => {
   const { details } = req.body || {};
   const ai = await callGemini(`Generate citation: ${details || ''}`);
-  res.json({ citation: `Citation (Joe): ${ai.response}` });
+  res.json({ citation: ai.response });
 });
 
 app.post('/ai/litigation/counter-argument', async (req: Request, res: Response) => {
@@ -270,10 +270,10 @@ app.get('/pdf/get-docs', (_req: Request, res: Response) => {
 app.post('/ai/ask', async (req: Request, res: Response) => {
   const { question } = req.body || {};
   const ai = await callGemini(`Ask: ${question || ''}`);
-  res.json({ answer: `Joe says: ${ai.response}` });
+  res.json({ answer: ai.response });
 });
 
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console
-  console.log(`WholeLexora backend listening on http://0.0.0.0:${PORT}/api`);
+  console.log(`WholeLexora backend listening on http://0.0.0.0:${PORT}`);
 });
