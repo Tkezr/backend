@@ -80,17 +80,31 @@ async function callGemini(prompt: string, opts: Record<string, any> = {}) {
   };
 }
 
-app.get('/api/health', (_req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', env: process.env.NODE_ENV || 'development' });
 });
 
-app.post('/api/ai/documents/summarize', async (req: Request, res: Response) => {
+app.post('/auth/login', (req: Request, res: Response) => {
+  const body = typeof req.body === 'object' && req.body !== null ? req.body : {};
+  const username = typeof body.username === 'string' ? body.username : 'demo';
+  const password = typeof body.password === 'string' ? body.password : 'demo';
+
+  const token = Buffer.from(JSON.stringify({ username, password, role: 'user' })).toString('base64');
+
+  res.json({
+    token,
+    access: 'granted',
+    user: { username, password },
+  });
+});
+
+app.post('/ai/documents/summarize', async (req: Request, res: Response) => {
   const { text } = req.body || {};
   const ai = await callGemini(`Summarize: ${text || 'no text'}`);
   res.json({ summary: ai.response, author: 'Joe Public' });
 });
 
-app.post('/api/ai/documents/timeline', async (req: Request, res: Response) => {
+app.post('/ai/documents/timeline', async (req: Request, res: Response) => {
   const { text } = req.body || {};
   const ai = await callGemini(`Extract timeline from: ${text || 'no text'}`);
   res.json({ timeline: [
@@ -99,7 +113,7 @@ app.post('/api/ai/documents/timeline', async (req: Request, res: Response) => {
   ] });
 });
 
-app.post('/api/pdf/process-document', upload.single('file'), (req: Request, res: Response) => {
+app.post('/pdf/process-document', upload.single('file'), (req: Request, res: Response) => {
   (async () => {
     try {
       const id = `doc-${Date.now()}`;
@@ -129,7 +143,7 @@ app.post('/api/pdf/process-document', upload.single('file'), (req: Request, res:
 });
 
 // Generate PDF from content and return base64
-app.post('/api/pdf/download-pdf', async (req: Request, res: Response) => {
+app.post('/pdf/download-pdf', async (req: Request, res: Response) => {
   try {
     const { content = '', filename = 'legal_document.pdf' } = req.body || {};
     const chunks: Buffer[] = [];
@@ -149,25 +163,25 @@ app.post('/api/pdf/download-pdf', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/ai/drafts/generate', async (req: Request, res: Response) => {
+app.post('/ai/drafts/generate', async (req: Request, res: Response) => {
   const { prompt } = req.body || {};
   const ai = await callGemini(`Generate draft: ${prompt || ''}`);
   res.json({ draft: `Draft generated for Joe:\n\n${ai.response}` });
 });
 
-app.post('/api/ai/draft/enhance', async (req: Request, res: Response) => {
+app.post('/ai/draft/enhance', async (req: Request, res: Response) => {
   const { draft } = req.body || {};
   const ai = await callGemini(`Enhance draft: ${draft || ''}`);
   res.json({ enhanced: `${ai.response}\n(Enhanced for Joe)` });
 });
 
-app.post('/api/ai/draft/clause', async (req: Request, res: Response) => {
+app.post('/ai/draft/clause', async (req: Request, res: Response) => {
   const { context } = req.body || {};
   const ai = await callGemini(`Create clause: ${context || ''}`);
   res.json({ clause: `${ai.response}\n-- Clause by Joe` });
 });
 
-app.post('/api/ai/contracts/analyze', upload.single('file'), async (req: Request, res: Response) => {
+app.post('/ai/contracts/analyze', upload.single('file'), async (req: Request, res: Response) => {
   try {
     let text = req.body.contract || '';
     const file = req.file;
@@ -197,49 +211,49 @@ app.post('/api/ai/contracts/analyze', upload.single('file'), async (req: Request
   }
 });
 
-app.post('/api/ai/research/cases', async (req: Request, res: Response) => {
+app.post('/ai/research/cases', async (req: Request, res: Response) => {
   const { query } = req.body || {};
   const ai = await callGemini(`Search cases for: ${query || ''}`);
   res.json({ results: [ { title: 'Joe v State', snippet: ai.response } ] });
 });
 
-app.post('/api/ai/research/definitions', async (req: Request, res: Response) => {
+app.post('/ai/research/definitions', async (req: Request, res: Response) => {
   const { term } = req.body || {};
   const ai = await callGemini(`Definition: ${term || ''}`);
   res.json({ definitions: [ { term, definition: ai.response } ] });
 });
 
-app.post('/api/ai/research/bare-act', async (req: Request, res: Response) => {
+app.post('/ai/research/bare-act', async (req: Request, res: Response) => {
   const { query } = req.body || {};
   const ai = await callGemini(`Bare act search: ${query || ''}`);
   res.json({ matches: [ ai.response ] });
 });
 
-app.post('/api/ai/research/citation', async (req: Request, res: Response) => {
+app.post('/ai/research/citation', async (req: Request, res: Response) => {
   const { details } = req.body || {};
   const ai = await callGemini(`Generate citation: ${details || ''}`);
   res.json({ citation: `Citation (Joe): ${ai.response}` });
 });
 
-app.post('/api/ai/litigation/counter-argument', async (req: Request, res: Response) => {
+app.post('/ai/litigation/counter-argument', async (req: Request, res: Response) => {
   const { argument } = req.body || {};
   const ai = await callGemini(`Counter-argument: ${argument || ''}`);
   res.json({ counter: ai.response });
 });
 
-app.post('/api/ai/litigation/predict-outcome', async (req: Request, res: Response) => {
+app.post('/ai/litigation/predict-outcome', async (req: Request, res: Response) => {
   const { facts } = req.body || {};
   const ai = await callGemini(`Predict outcome: ${facts || ''}`);
   res.json({ prediction: 'Unlikely to succeed', confidence: 0.32, note: ai.response });
 });
 
-app.post('/api/ai/documents/query', async (req: Request, res: Response) => {
+app.post('/ai/documents/query', async (req: Request, res: Response) => {
   const { docId, query } = req.body || {};
   const ai = await callGemini(`Query doc ${docId}: ${query || ''}`);
   res.json({ answer: ai.response });
 });
 
-app.post('/api/pdf/save-doc', (req: Request, res: Response) => {
+app.post('/pdf/save-doc', (req: Request, res: Response) => {
   const { title, content } = req.body || {};
   const id = `doc-${Date.now()}`;
   const entry: DocumentEntry = { id, title: title || 'Untitled (Joe)', content: content || '', owner: 'Joe Public', createdAt: new Date().toISOString() };
@@ -247,11 +261,11 @@ app.post('/api/pdf/save-doc', (req: Request, res: Response) => {
   res.json({ id, message: 'saved (dummy)' });
 });
 
-app.get('/api/pdf/get-docs', (_req: Request, res: Response) => {
+app.get('/pdf/get-docs', (_req: Request, res: Response) => {
   res.json({ docs: documents });
 });
 
-app.post('/api/ai/ask', async (req: Request, res: Response) => {
+app.post('/ai/ask', async (req: Request, res: Response) => {
   const { question } = req.body || {};
   const ai = await callGemini(`Ask: ${question || ''}`);
   res.json({ answer: `Joe says: ${ai.response}` });
