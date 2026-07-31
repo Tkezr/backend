@@ -32,25 +32,28 @@ const documents: DocumentEntry[] = [
 ];
 
 async function callGemini(prompt: string, opts: Record<string, any> = {}) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  // Default to Gemini 1.5 Flash if GEMINI_API_URL isn't set
+  const apiKey = process.env.GROQ_API_KEY;
+  // Groq uses OpenAI-compatible endpoints
   const apiUrl =
-    process.env.GEMINI_API_URL ||
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    process.env.GROQ_API_URL ||
+    'https://api.groq.com/openai/v1/chat/completions';
 
   if (apiKey && apiUrl && typeof fetch !== 'undefined') {
     try {
-      // Pass the API key in the URL search params, not the Authorization header
-      const resp = await fetch(`${apiUrl}?key=${apiKey}`, {
+      const resp = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          // Groq accepts standard Bearer token authorization
+          Authorization: `Bearer ${apiKey}`,
         },
-        // Gemini REST API expects the body wrapped in 'contents'
         body: JSON.stringify({
-          contents: [
+          // Default to Llama 3.3 70B Versatile if not specified in opts
+          model: opts.model || 'llama-3.3-70b-versatile',
+          messages: [
             {
-              parts: [{ text: prompt }],
+              role: 'user',
+              content: prompt,
             },
           ],
           ...opts,
@@ -58,26 +61,33 @@ async function callGemini(prompt: string, opts: Record<string, any> = {}) {
       });
 
       const data = await resp.json();
-      
-      // Extract generated text from the standard Gemini API response structure
-      const text =
-        data?.candidates?.[0]?.content?.parts?.[0]?.text ??
-        JSON.stringify(data);
 
-      return { model: 'gemini', prompt, response: text };
+      // Catch Groq/OpenAI error structure
+      if (data.error) {
+        return {
+          model: 'groq-error',
+          prompt,
+          response: `Groq Error: ${data.error.message || JSON.stringify(data.error)}`,
+        };
+      }
+
+      // Extract generated text from OpenAI format choices array
+      const text = data?.choices?.[0]?.message?.content ?? JSON.stringify(data);
+
+      return { model: 'groq', prompt, response: text };
     } catch (err) {
       return {
-        model: 'gemini-error',
+        model: 'groq-error',
         prompt,
-        response: `Gemini call failed: ${String(err)}`,
+        response: `Groq call failed: ${String(err)}`,
       };
     }
   }
 
   return {
-    model: 'gemini-placeholder',
+    model: 'groq-placeholder',
     prompt,
-    response: `(Gemini placeholder) Response for prompt: ${prompt.slice(0, 200)}`,
+    response: `(Groq placeholder) Response for prompt: ${prompt.slice(0, 200)}`,
   };
 }
 
