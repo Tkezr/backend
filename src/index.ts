@@ -3,6 +3,7 @@ import cors from 'cors';
 import multer from 'multer';
 import PDFDocument from 'pdfkit';
 import pdfParse from 'pdf-parse';
+import jwt from 'jsonwebtoken';
 import { contractPrompt } from './prompts';
 
 const app = express();
@@ -88,8 +89,9 @@ app.post('/auth/login', (req: Request, res: Response) => {
   const body = typeof req.body === 'object' && req.body !== null ? req.body : {};
   const username = typeof body.username === 'string' ? body.username : 'demo';
   const password = typeof body.password === 'string' ? body.password : 'demo';
+  const secret = process.env.JWT_SECRET || 'dummy-secret';
 
-  const token = Buffer.from(JSON.stringify({ username, password, role: 'user' })).toString('base64');
+  const token = jwt.sign({ username, role: 'user' }, secret, { expiresIn: '1h' });
 
   res.json({
     token,
